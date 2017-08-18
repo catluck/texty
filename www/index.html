@@ -1,0 +1,105 @@
+<html>
+	<head>
+	<script>
+			//const URL = "ws://127.0.0.1:2001";
+			const URL = "ws://35.162.173.128:2001"
+			var printable = /^[a-z0-9!"#$%&'()*+,.\/:;<=>?@\[\] ^_`{|}~-]*$/i;
+			var _text = "";
+			var _ws;
+			var _positionModifier;
+
+			function connect()
+			{
+				_ws = new WebSocket(URL);
+				_ws.onmessage = onInitMessage;
+			}
+
+			function onMessage(e)
+			{
+				var editData = JSON.parse(e.data);
+				applyEdit(editData);
+				writeOver();
+			}
+
+			function onInitMessage(e)
+			{
+				_text = e.data;
+				_ws.onmessage = onMessage;
+				writeOver();
+			}
+
+			function getPosition()
+			{
+				return document.getElementById('mainText').selectionStart;
+			}
+
+			function createEditData(key, position)
+			{
+				return {key:key, position:position};
+			}
+
+			function sendEdit(editData)
+			{
+				_ws.send(JSON.stringify(editData));
+			}
+
+			function applyEdit(editData)
+			{
+				var key = editData.key;
+				var position = editData.position;
+				var textString = _text;
+
+				switch(key)
+				{
+					case "Backspace":
+						var start = textString.slice(0, position-1);
+						var end = textString.slice(position);
+						_text = start + end;
+						break;
+	
+					default:
+						if ((key == "\n" || key.match(printable)))
+						{
+							var start = textString.slice(0,position);
+							var end = textString.slice(position);
+							_text = start + key + end;
+						}
+				}
+			}
+
+			function update(e)
+			{
+				var key = e.key;
+				key = key == "Enter" ? "\n" : key;
+				if (key == "Backspace" || (!e.getModifierState("Alt") && !e.getModifierState("Control") && key.length == 1))
+				{
+					var editData = createEditData(key, getPosition());
+					applyEdit(editData);
+					var debug =  document.getElementById('debug');
+					debug.innerHTML = _text;
+					sendEdit(editData);
+				}
+			}
+
+			function writeOver(e)
+			{
+				var textArea = document.getElementById('mainText');
+				textArea.value = _text;
+			}
+
+			function init()
+			{
+				var text = document.getElementById('mainText');
+				text.onkeydown = update;
+				text.onkeyup = writeOver;
+				_positionModifier = 0;
+				connect();
+			}
+	</script>
+	</head>
+	<body onload="init()">
+		<textarea style="width:100%; height:90%" id="mainText"></textarea>
+		<br/>
+		<textarea readonly style="width:100%; height:0%; visibility: hidden" id="debug"></textarea>
+	</body>
+</html>
